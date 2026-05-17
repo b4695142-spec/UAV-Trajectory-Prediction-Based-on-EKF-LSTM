@@ -47,7 +47,8 @@ from evaluation.visualization import (
     plot_runtime_bar,
 )
 from models.ekf import EKF
-from models.ekf_lstm import EKFLSTM, _build_P0, run_ekf
+from models.ekf_lstm import EKFLSTM
+from models.ekf_service import EKFService
 from models.lstm import LSTMNet, lstm_predict, train_lstm
 from models.motion_models import (
     make_f_and_jacobian,
@@ -152,7 +153,8 @@ def measure_ekf_runtime(
     f_func, jac_func, Gamma = make_f_and_jacobian(model, T)
 
     durations: list[float] = []
-    P0 = _build_P0(model, state_dim)
+    ekf_svc = EKFService(model, state_dim, T, sigma_w2, sigma_v2)
+    P0 = ekf_svc.build_initial_covariance()
     for _ in range(repeats):
         ekf = EKF(state_dim, 3, sigma_w2, sigma_v2, X0, P0_scale=P0)
         t_start = time.perf_counter()
@@ -212,7 +214,8 @@ def run_model_experiment(
 
     if verbose:
         print("  [1/3] 运行 EKF ...")
-    X_filt, _ = run_ekf(model_name, Z_obs, X0, state_dim, T, sigma_w2, sigma_v2, X_true)
+    ekf_svc = EKFService(model_name, state_dim, T, sigma_w2, sigma_v2)
+    X_filt, _ = ekf_svc.run(Z_obs, X0, X_true)
 
     if verbose:
         print("  [2/3] 训练并运行单一 LSTM 基线 ...")
